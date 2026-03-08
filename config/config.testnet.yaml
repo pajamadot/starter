@@ -2,20 +2,24 @@
 # TESTNET Configuration — Use this FIRST to validate everything works
 # No real money at risk!
 #
+# Kraken Futures (Canada OK): https://demo-futures.kraken.com
 # Bybit Testnet: https://testnet.bybit.com
 # Binance Testnet: https://testnet.binancefuture.com
-# OKX Demo: https://www.okx.com (demo trading mode)
 # ============================================================
 
 exchange:
-  name: bybit              # bybit, binance, okx
-  api_key: ""              # Get from testnet site
+  # CANADA: use krakenfutures (registered MSB, lowest fees)
+  # OTHER: use bybit or binance
+  name: krakenfutures      # krakenfutures, bybit, binance
+  api_key: ""              # Get from testnet/demo site
   api_secret: ""
   sandbox: true            # IMPORTANT: enables testnet mode
   rate_limit: true
 
 trading:
-  symbol: "BTC/USDT:USDT"  # CCXT perpetual futures symbol format
+  # krakenfutures uses USD pairs: BTC/USD:USD
+  # bybit/binance use USDT pairs: BTC/USDT:USDT
+  symbol: "BTC/USD:USD"
   timeframe: "4h"
   initial_capital: 100
   mode: "paper"            # Start with paper, then switch to "live"

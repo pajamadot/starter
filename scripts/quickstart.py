@@ -42,19 +42,20 @@ def check_exchange_connection(exchange_name="bybit"):
         exchange.load_markets()
         print(f"  Connected! {len(exchange.markets)} markets available")
 
-        # Check if BTC/USDT perpetual exists
-        perp_symbol = "BTC/USDT:USDT"
-        if perp_symbol in exchange.markets:
-            print(f"  {perp_symbol} perpetual futures: Available")
-            m = exchange.market(perp_symbol)
-            print(f"  Min order: {m.get('limits', {}).get('cost', {}).get('min', '?')} USDT")
-        else:
-            # Try alternative symbol format
-            alt = "BTC/USDT"
-            if alt in exchange.markets:
-                print(f"  {alt} found (may need different symbol format for futures)")
-            else:
-                print(f"  Warning: BTC/USDT not found on {exchange_name}")
+        # Check for BTC perpetual futures (different symbol formats by exchange)
+        found_perp = False
+        for sym in ["BTC/USDT:USDT", "BTC/USD:USD", "BTC/USDT"]:
+            if sym in exchange.markets:
+                print(f"  {sym}: Available")
+                m = exchange.market(sym)
+                maker = m.get("maker", "?")
+                taker = m.get("taker", "?")
+                if maker and maker != "?":
+                    print(f"  Maker fee: {float(maker)*100:.3f}%  Taker fee: {float(taker)*100:.3f}%")
+                found_perp = True
+                break
+        if not found_perp:
+            print(f"  Warning: No BTC pair found on {exchange_name}")
 
         return True
     except Exception as e:
@@ -75,8 +76,8 @@ def check_market_data(exchange_name="bybit"):
         })
         exchange.load_markets()
 
-        # Try perpetual symbol formats
-        for symbol in ["BTC/USDT:USDT", "BTC/USDT"]:
+        # Try perpetual symbol formats (different by exchange)
+        for symbol in ["BTC/USDT:USDT", "BTC/USD:USD", "BTC/USDT", "BTC/USD"]:
             if symbol in exchange.markets:
                 ohlcv = exchange.fetch_ohlcv(symbol, "4h", limit=50)
                 if ohlcv:
@@ -146,15 +147,21 @@ def show_next_steps():
     print("  NEXT STEPS")
     print("=" * 55)
     print("""
-  1. Register on Bybit (or OKX/Binance)
-  2. Get API Key (read + trade permissions, NO withdrawal)
-  3. Copy config/config.testnet.yaml to config/config.yaml
-  4. Fill in your API key and secret
-  5. Run paper trading first:
+  1. Register on an exchange:
+     - Canada: Kraken (kraken.com) -> Kraken Futures
+     - Other:  Bybit (bybit.com) or Binance (binance.com)
 
+  2. Get API Key (read + trade permissions, NO withdrawal!)
+
+  3. Copy config to get started:
+     cp config/config.testnet.yaml config/config.yaml
+
+  4. Edit config.yaml: fill in your API key and secret
+
+  5. Run paper trading first:
      python -m src --config config/config.yaml
 
-  6. After 2+ weeks of paper trading, if profitable:
+  6. After 2+ weeks profitable paper trading:
      Change mode: "paper" -> "live" in config.yaml
 
   IMPORTANT:
@@ -168,7 +175,7 @@ def show_next_steps():
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="Trading Bot Quick Start")
-    parser.add_argument("--exchange", default="bybit", help="Exchange to test")
+    parser.add_argument("--exchange", default="krakenfutures", help="Exchange to test")
     args = parser.parse_args()
 
     print("=" * 55)

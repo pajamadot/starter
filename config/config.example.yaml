@@ -5,16 +5,20 @@
 # ============================================================
 
 exchange:
-  name: binance          # binance, bybit, kucoin
+  # CANADA: use krakenfutures (registered MSB, 0.02% maker fees)
+  # OTHER:  use bybit or binance
+  name: krakenfutures    # krakenfutures, bybit, binance, okx
   api_key: "YOUR_API_KEY"
   api_secret: "YOUR_API_SECRET"
   sandbox: true          # USE SANDBOX/TESTNET FIRST!
   rate_limit: true
 
 trading:
-  symbol: "BTC/USDT"
+  # krakenfutures: BTC/USD:USD  (USD-margined)
+  # bybit/binance: BTC/USDT:USDT (USDT-margined)
+  symbol: "BTC/USD:USD"
   timeframe: "4h"        # 4h recommended for small accounts (fewer trades, lower fees)
-  initial_capital: 100   # Starting capital in USDT
+  initial_capital: 100   # Starting capital in USD
   mode: "paper"          # paper, live (START WITH PAPER!)
   market_type: "futures"  # spot or futures (futures has 5x lower fees)
   leverage: 2            # 2-3x for small accounts (never more!)
