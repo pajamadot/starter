@@ -4,6 +4,8 @@ from src.strategies.rsi_macd import RsiMacdStrategy
 from src.strategies.mean_reversion import MeanReversionStrategy
 from src.strategies.grid_trading import GridTradingStrategy
 from src.strategies.dca_momentum import DCAMomentumStrategy
+from src.strategies.ensemble import EnsembleStrategy
+from src.strategies.base import Signal
 
 
 def make_config():
@@ -21,6 +23,7 @@ def make_config():
                 "grid_levels": 10,
                 "grid_spacing_atr_mult": 0.5,
                 "dca_interval": 4,
+                "ensemble_min_consensus": 0.4,
             }
         }
     }
@@ -53,6 +56,16 @@ def test_rsi_macd_returns_valid_signal():
     assert signal in ("buy", "sell", "hold")
 
 
+def test_rsi_macd_rich_signal():
+    config = make_config()
+    strategy = RsiMacdStrategy(config)
+    df = make_sample_df()
+    sig = strategy.generate_rich_signal(df)
+    assert sig.signal in (Signal.BUY, Signal.SELL, Signal.HOLD)
+    assert 0 <= sig.confidence <= 1.0
+    assert isinstance(sig.reason, str)
+
+
 def test_mean_reversion_returns_valid_signal():
     config = make_config()
     strategy = MeanReversionStrategy(config)
@@ -77,10 +90,26 @@ def test_dca_momentum_returns_valid_signal():
     assert signal in ("buy", "sell", "hold")
 
 
+def test_ensemble_returns_valid_signal():
+    config = make_config()
+    strategy = EnsembleStrategy(config)
+    df = make_sample_df()
+    signal = strategy.generate_signal(df)
+    assert signal in ("buy", "sell", "hold")
+
+
+def test_ensemble_rich_signal_has_regime():
+    config = make_config()
+    strategy = EnsembleStrategy(config)
+    df = make_sample_df()
+    sig = strategy.generate_rich_signal(df)
+    assert sig.signal in (Signal.BUY, Signal.SELL, Signal.HOLD)
+    assert "Regime=" in sig.reason
+
+
 def test_strategy_handles_small_data():
     config = make_config()
     strategy = RsiMacdStrategy(config)
-    # Only 5 candles - too little data
     df = make_sample_df(5)
     signal = strategy.generate_signal(df)
     assert signal == "hold"

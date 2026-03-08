@@ -18,7 +18,7 @@ trading:
   mode: "paper"          # paper, live (START WITH PAPER!)
 
 strategy:
-  name: "rsi_macd"       # rsi_macd, mean_reversion, grid, dca_momentum
+  name: "ensemble"       # ensemble, rsi_macd, mean_reversion, grid, dca_momentum
   params:
     # RSI + MACD Strategy
     rsi_period: 14

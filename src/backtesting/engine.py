@@ -1,3 +1,9 @@
+"""Backtesting engine — simulates trading on historical data.
+
+Accounts for fees, slippage, and realistic execution constraints.
+Uses the same strategy interface as live trading for consistency.
+"""
+
 import pandas as pd
 import numpy as np
 from tabulate import tabulate
@@ -9,15 +15,10 @@ logger = setup_logger("backtest")
 
 
 class BacktestEngine:
-    """
-    Backtesting engine that simulates trading on historical data.
-    Accounts for fees, slippage, and realistic execution.
-    """
-
     def __init__(self, config: dict, strategy: BaseStrategy):
         self.config = config
         self.strategy = strategy
-        self.fee_rate = 0.001  # 0.1% per trade (Binance base)
+        self.fee_rate = 0.001   # 0.1% per trade (Binance base)
         self.slippage = 0.0005  # 0.05% slippage estimate
         self.risk_manager = RiskManager(config)
         self.equity_curve: list[float] = []
@@ -31,12 +32,16 @@ class BacktestEngine:
             f"{len(df)} candles"
         )
 
-        lookback = 60  # Minimum candles for indicator calculation
+        lookback = 60
         trade_counter = 0
 
+        # Pre-compute close prices as numpy array for fast stop checks
+        close_prices = df["close"].values
+
         for i in range(lookback, len(df)):
-            window = df.iloc[:i + 1].copy()
-            current_price = float(window.iloc[-1]["close"])
+            # Use iloc slice — avoids copy for the common case
+            window = df.iloc[:i + 1]
+            current_price = float(close_prices[i])
 
             # Track equity
             open_pnl = sum(
@@ -66,10 +71,9 @@ class BacktestEngine:
                     current_price, stop_price
                 )
 
-                if amount * current_price < 5:  # Min order ~$5
+                if amount * current_price < 5:
                     continue
 
-                # Apply fees + slippage
                 exec_price = current_price * (1 + self.slippage)
                 fee = amount * exec_price * self.fee_rate
                 self.risk_manager.capital -= fee
@@ -114,18 +118,26 @@ class BacktestEngine:
     def _generate_report(self, df: pd.DataFrame) -> dict:
         stats = self.risk_manager.get_stats()
 
-        # Calculate additional metrics
         equity = np.array(self.equity_curve) if self.equity_curve else np.array([self.risk_manager.initial_capital])
         peak = np.maximum.accumulate(equity)
         drawdowns = (peak - equity) / peak
         max_drawdown = float(np.max(drawdowns)) if len(drawdowns) > 0 else 0
 
-        # Sharpe ratio (annualized, assuming 15m candles)
+        # Sharpe ratio (annualized)
         if len(equity) > 1:
             returns = np.diff(equity) / equity[:-1]
-            sharpe = (np.mean(returns) / np.std(returns)) * np.sqrt(365 * 24 * 4) if np.std(returns) > 0 else 0
+            std = np.std(returns)
+            sharpe = (np.mean(returns) / std) * np.sqrt(365 * 24 * 4) if std > 0 else 0
         else:
             sharpe = 0
+
+        # Sortino ratio (downside deviation only)
+        if len(equity) > 1:
+            neg_returns = returns[returns < 0]
+            downside_std = np.std(neg_returns) if len(neg_returns) > 0 else 1
+            sortino = (np.mean(returns) / downside_std) * np.sqrt(365 * 24 * 4) if downside_std > 0 else 0
+        else:
+            sortino = 0
 
         total_fees = sum(t.get("fee", 0) for t in self.trades_log)
 
@@ -133,6 +145,7 @@ class BacktestEngine:
             **stats,
             "max_drawdown_pct": max_drawdown * 100,
             "sharpe_ratio": sharpe,
+            "sortino_ratio": sortino,
             "total_fees": total_fees,
             "start_date": str(df.index[0]),
             "end_date": str(df.index[-1]),
@@ -162,6 +175,7 @@ class BacktestEngine:
             ["Profit Factor", f"{report.get('profit_factor', 0):.2f}"],
             ["Max Drawdown", f"{report['max_drawdown_pct']:.2f}%"],
             ["Sharpe Ratio", f"{report['sharpe_ratio']:.2f}"],
+            ["Sortino Ratio", f"{report['sortino_ratio']:.2f}"],
             ["Total Fees", f"${report['total_fees']:.2f}"],
         ]
         print(tabulate(table, tablefmt="simple"))

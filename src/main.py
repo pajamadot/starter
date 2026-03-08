@@ -2,30 +2,20 @@
 Crypto Trading Bot - Main Entry Point
 ======================================
 Usage:
-  python -m src.main                  # Run bot (paper trading)
-  python -m src.main --backtest       # Run backtest
-  python -m src.main --backtest-all   # Backtest all strategies
-  python -m src.main --config path    # Custom config file
+  python -m src                      # Run bot (paper trading)
+  python -m src --backtest           # Run backtest
+  python -m src --backtest-all       # Backtest all strategies
+  python -m src --config path        # Custom config file
+  python -m src --strategy rsi_macd  # Override strategy
 """
 
 import argparse
 import os
 import sys
 import yaml
-from src.bot import TradingBot
+from src.bot import TradingBot, STRATEGY_MAP
 from src.backtesting.engine import BacktestEngine
-from src.strategies.rsi_macd import RsiMacdStrategy
-from src.strategies.mean_reversion import MeanReversionStrategy
-from src.strategies.grid_trading import GridTradingStrategy
-from src.strategies.dca_momentum import DCAMomentumStrategy
 from src.utils.logger import setup_logger
-
-STRATEGY_MAP = {
-    "rsi_macd": RsiMacdStrategy,
-    "mean_reversion": MeanReversionStrategy,
-    "grid": GridTradingStrategy,
-    "dca_momentum": DCAMomentumStrategy,
-}
 
 
 def load_config(path: str) -> dict:
@@ -72,10 +62,9 @@ def fetch_backtest_data(config: dict):
 
 
 def run_backtest(config: dict, strategy_name: str = None):
-    """Run backtest for a specific strategy."""
     name = strategy_name or config["strategy"]["name"]
     if name not in STRATEGY_MAP:
-        print(f"Unknown strategy: {name}")
+        print(f"Unknown strategy: {name}. Available: {list(STRATEGY_MAP.keys())}")
         return None
 
     strategy = STRATEGY_MAP[name](config)
@@ -85,7 +74,6 @@ def run_backtest(config: dict, strategy_name: str = None):
 
 
 def run_all_backtests(config: dict):
-    """Run backtests for all strategies and compare."""
     from tabulate import tabulate
 
     results = {}
@@ -158,16 +146,19 @@ def main():
         run_backtest(config)
     else:
         print("""
-╔══════════════════════════════════════════════════════════╗
-║           CRYPTO TRADING BOT v1.0                       ║
-║                                                         ║
-║  ⚠  WARNING: Trading involves risk of loss!             ║
-║  ⚠  Start with PAPER mode before using real money!      ║
-║  ⚠  Never invest more than you can afford to lose!      ║
-║                                                         ║
-║  Mode: {mode:<10}  Strategy: {strategy:<20} ║
-║  Symbol: {symbol:<9}  Capital: ${capital:<18} ║
-╚══════════════════════════════════════════════════════════╝
++============================================================+
+|           CRYPTO TRADING BOT v2.0                          |
+|                                                            |
+|  WARNING: Trading involves risk of loss!                   |
+|  Start with PAPER mode before using real money!            |
+|  Never invest more than you can afford to lose!            |
+|                                                            |
+|  Mode: {mode:<12} Strategy: {strategy:<20}|
+|  Symbol: {symbol:<11} Capital: ${capital:<18}|
+|                                                            |
+|  Architecture: Platform-agnostic via ExchangeAdapter       |
+|  Supported: Binance, Bybit, KuCoin, + 100 more via CCXT   |
++============================================================+
         """.format(
             mode=config["trading"]["mode"].upper(),
             strategy=config["strategy"]["name"],
@@ -176,10 +167,10 @@ def main():
         ))
 
         if config["trading"]["mode"] == "live":
-            print("⚠  You are about to trade with REAL MONEY!")
-            confirm = input("Type 'YES' to confirm: ")
+            print("  You are about to trade with REAL MONEY!")
+            confirm = input("  Type 'YES' to confirm: ")
             if confirm != "YES":
-                print("Aborted.")
+                print("  Aborted.")
                 return
 
         bot = TradingBot(config)
